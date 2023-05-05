@@ -18,5 +18,7 @@ if __name__ == "__main__":
     num_trains_to_check = cli_args.num
     want_reserve = cli_args.reserve
 
+    discord = cli_args.discord
+
     srt = SRT(dpt_stn, arr_stn, dpt_dt, dpt_tm, num_trains_to_check, want_reserve)
-    srt.run(login_id, login_psw)
+    srt.run(login_id, login_psw, discord)    

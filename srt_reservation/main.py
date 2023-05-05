@@ -13,6 +13,8 @@ from selenium.common.exceptions import ElementClickInterceptedException, StaleEl
 from srt_reservation.exceptions import InvalidStationNameError, InvalidDateError, InvalidDateFormatError, InvalidTimeFormatError
 from srt_reservation.validation import station_list
 
+import srt_reservation.util
+
 chromedriver_path = r'C:\workspace\chromedriver.exe'
 
 class SRT:
@@ -25,6 +27,7 @@ class SRT:
         :param num_trains_to_check: 검색 결과 중 예약 가능 여부 확인할 기차의 수 ex) 2일 경우 상위 2개 확인
         :param want_reserve: 예약 대기가 가능할 경우 선택 여부
         """
+        self.discord = ""
         self.login_id = None
         self.login_psw = None
 
@@ -58,6 +61,10 @@ class SRT:
         self.login_id = login_id
         self.login_psw = login_psw
 
+    def set_discord_webhook(self, url):
+        self.discord = url
+
+
     def run_driver(self):
         try:
             self.driver = webdriver.Chrome(executable_path=chromedriver_path)
@@ -82,6 +89,8 @@ class SRT:
 
     def go_search(self):
         # 기차 조회 페이지로 이동
+        time.sleep(3)
+        srt_reservation.util.SendDiscordMessage("SRT 조회를 시작합니다.", self.discord)
         self.driver.get('https://etk.srail.kr/hpg/hra/01/selectScheduleList.do')
         self.driver.implicitly_wait(5)
 
@@ -135,6 +144,7 @@ class SRT:
             if self.driver.find_elements(By.ID, 'isFalseGotoMain'):
                 self.is_booked = True
                 print("예약 성공")
+                srt_reservation.util.SendDiscordMessage("SRT 예약 성공, 확인이 필요합니다.", self.discord)
                 return self.driver
             else:
                 print("잔여석 없음. 다시 검색")
@@ -180,18 +190,10 @@ class SRT:
                 time.sleep(randint(2, 4))
                 self.refresh_result()
 
-    def run(self, login_id, login_psw):
+    def run(self, login_id, login_psw, url):
         self.run_driver()
         self.set_log_info(login_id, login_psw)
+        self.set_discord_webhook(url)
         self.login()
         self.go_search()
         self.check_result()
-
-#
-# if __name__ == "__main__":
-#     srt_id = os.environ.get('srt_id')
-#     srt_psw = os.environ.get('srt_psw')
-#
-#     srt = SRT("동탄", "동대구", "20220917", "08")
-#     srt.run(srt_id, srt_psw)
-

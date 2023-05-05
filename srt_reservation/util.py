@@ -1,4 +1,5 @@
 import argparse
+from discord_webhook import DiscordWebhook
 
 def parse_cli_args():
 
@@ -13,7 +14,15 @@ def parse_cli_args():
 
     parser.add_argument("--num", help="no of trains to check", type=int, metavar="2", default=2)
     parser.add_argument("--reserve", help="Reserve or not", type=bool, metavar="2", default=False)
+    parser.add_argument("--discord", help="Discord Webhook", type=str, metavar="https://example.com", default=False)
 
-    args = parser.parse_args()
+    args = parser.parse_args()  
 
     return args
+
+def SendDiscordMessage(str, discord):
+    webhook = DiscordWebhook(url=discord,content=str)
+    response = webhook.execute()
+    print(response)
+
+
