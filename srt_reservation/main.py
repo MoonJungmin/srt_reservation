@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 import os
 import time
+import requests
 from random import randint
 from datetime import datetime
 from selenium import webdriver
@@ -15,7 +16,6 @@ from srt_reservation.validation import station_list
 
 import srt_reservation.util
 
-chromedriver_path = r'C:\workspace\chromedriver.exe'
 
 class SRT:
     def __init__(self, dpt_stn, arr_stn, dpt_dt, dpt_tm, num_trains_to_check=2, want_reserve=False):
@@ -66,8 +66,10 @@ class SRT:
 
 
     def run_driver(self):
+        # release = "http://chromedriver.storage.googleapis.com/LATEST_RELEASE"
+        # version = requests.get(release).text
         try:
-            self.driver = webdriver.Chrome(executable_path=chromedriver_path)
+            self.driver = webdriver.Chrome("D:\Projects\srt_reservation\chromedriver-win64\chromedriver.exe")
         except WebDriverException:
             self.driver = webdriver.Chrome(ChromeDriverManager().install())
 
@@ -90,7 +92,6 @@ class SRT:
     def go_search(self):
         # 기차 조회 페이지로 이동
         time.sleep(3)
-        srt_reservation.util.SendDiscordMessage("SRT 조회를 시작합니다.", self.discord)
         self.driver.get('https://etk.srail.kr/hpg/hra/01/selectScheduleList.do')
         self.driver.implicitly_wait(5)
 
@@ -113,6 +114,8 @@ class SRT:
         elm_dpt_tm = self.driver.find_element(By.ID, "dptTm")
         self.driver.execute_script("arguments[0].setAttribute('style','display: True;')", elm_dpt_tm)
         Select(self.driver.find_element(By.ID, "dptTm")).select_by_visible_text(self.dpt_tm)
+
+        self.driver.find_element(By.ID, "trnGpCd300").click()
 
         print("기차를 조회합니다")
         print(f"출발역:{self.dpt_stn} , 도착역:{self.arr_stn}\n날짜:{self.dpt_dt}, 시간: {self.dpt_tm}시 이후\n{self.num_trains_to_check}개의 기차 중 예약")
@@ -140,6 +143,14 @@ class SRT:
             finally:
                 self.driver.implicitly_wait(3)
 
+
+            srt_reservation.util.SendDiscordMessage("SRT 예약 시도 후 확인이 필요합니다.", self.discord)
+            try:
+                self.driver.switch_to.alert().accept()
+            except:
+                pass
+            time.sleep(5)
+            
             # 예약이 성공하면
             if self.driver.find_elements(By.ID, 'isFalseGotoMain'):
                 self.is_booked = True
@@ -168,7 +179,11 @@ class SRT:
             return self.is_booked
 
     def check_result(self):
-        while True:
+        for k in range(100):
+
+            while self.driver.find_elements(By.ID, 'NetFunnel_Loading_Popup'):
+                time.sleep(0.5)
+
             for i in range(1, self.num_trains_to_check+1):
                 try:
                     standard_seat = self.driver.find_element(By.CSS_SELECTOR, f"#result-form > fieldset > div.tbl_wrap.th_thead > table > tbody > tr:nth-child({i}) > td:nth-child(7)").text
@@ -191,9 +206,13 @@ class SRT:
                 self.refresh_result()
 
     def run(self, login_id, login_psw, url):
+        
         self.run_driver()
         self.set_log_info(login_id, login_psw)
         self.set_discord_webhook(url)
+        time.sleep(randint(2, 4))
         self.login()
         self.go_search()
         self.check_result()
+        self.driver.quit()
+        time.sleep(randint(2, 4))
